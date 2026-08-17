@@ -1,0 +1,13 @@
+:host {
+  display: block;
+}
+
+form {
+  display: grid;
+  gap: 1rem;
+  max-width: 36rem;
+}
+
+.feedback {
+  margin: 0 0 1rem;
+}

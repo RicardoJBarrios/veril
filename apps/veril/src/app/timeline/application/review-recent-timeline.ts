@@ -7,6 +7,8 @@ import {
   TimelineMeasurementReader,
   TimelineObservationReader,
   ObservationListItem,
+  TimelineWaterChange,
+  TimelineWaterChangeReader,
 } from './ports';
 
 export const RECENT_TIMELINE_LIMIT = 20;
@@ -28,6 +30,7 @@ export type MeasurementTimelineItem = {
   readonly effectiveAt: Date;
   readonly measuredAt: Date;
   readonly recordedAt: Date;
+  readonly correctsMeasurementId?: string;
 };
 
 export type CareWorkTimelineItem = {
@@ -39,17 +42,35 @@ export type CareWorkTimelineItem = {
   readonly recordedAt: Date;
 };
 
+export type WaterChangeTimelineItem = {
+  readonly kind: 'water-change';
+  readonly waterChangeId: TimelineWaterChange['id'];
+  readonly volumeLitres: number;
+  readonly notes?: string;
+  readonly effectiveAt: Date;
+  readonly performedAt: Date;
+  readonly recordedAt: Date;
+};
+
 export type TimelineItem =
-  ObservationTimelineItem | MeasurementTimelineItem | CareWorkTimelineItem;
+  | ObservationTimelineItem
+  | MeasurementTimelineItem
+  | CareWorkTimelineItem
+  | WaterChangeTimelineItem;
 
 const sourceOrder: Record<TimelineItem['kind'], number> = {
   measurement: 0,
   observation: 1,
   'care-work': 2,
+  'water-change': 3,
 };
 
 function toTimelineItem(
-  item: ObservationListItem | MeasurementListItem | CareWorkListItem,
+  item:
+    | ObservationListItem
+    | MeasurementListItem
+    | CareWorkListItem
+    | TimelineWaterChange,
 ): TimelineItem {
   if ('content' in item) {
     return {
@@ -72,6 +93,18 @@ function toTimelineItem(
     };
   }
 
+  if ('volumeLitres' in item) {
+    return {
+      kind: 'water-change',
+      waterChangeId: item.id,
+      volumeLitres: item.volumeLitres,
+      ...(item.notes ? { notes: item.notes } : {}),
+      effectiveAt: item.performedAt,
+      performedAt: item.performedAt,
+      recordedAt: item.recordedAt,
+    };
+  }
+
   return {
     kind: 'measurement',
     measurementId: item.id,
@@ -81,6 +114,9 @@ function toTimelineItem(
     effectiveAt: item.measuredAt,
     measuredAt: item.measuredAt,
     recordedAt: item.recordedAt,
+    ...(item.correctsMeasurementId
+      ? { correctsMeasurementId: item.correctsMeasurementId }
+      : {}),
   };
 }
 
@@ -106,13 +142,17 @@ function compareTimelineItems(left: TimelineItem, right: TimelineItem): number {
       ? left.measurementId
       : left.kind === 'observation'
         ? left.observationId
-        : left.careWorkId;
+        : left.kind === 'care-work'
+          ? left.careWorkId
+          : left.waterChangeId;
   const rightId =
     right.kind === 'measurement'
       ? right.measurementId
       : right.kind === 'observation'
         ? right.observationId
-        : right.careWorkId;
+        : right.kind === 'care-work'
+          ? right.careWorkId
+          : right.waterChangeId;
   return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
 }
 
@@ -121,6 +161,7 @@ export class ReviewRecentTimeline {
     private readonly observationReader: TimelineObservationReader,
     private readonly measurementReader: TimelineMeasurementReader,
     private readonly careWorkReader: CareWorkReader,
+    private readonly waterChangeReader: TimelineWaterChangeReader,
     private readonly keeperSession: KeeperSession,
     private readonly activeContext: ActiveAquariumContext,
   ) {}
@@ -135,13 +176,15 @@ export class ReviewRecentTimeline {
       throw new Error('Aquarium context is required');
     }
 
-    const [observations, measurements, careWorks] = await Promise.all([
-      this.observationReader.listRecentOwned(keeper.id, aquariumId, limit),
-      this.measurementReader.listRecentOwned(keeper.id, aquariumId, limit),
-      this.careWorkReader.listRecentOwned(keeper.id, aquariumId, limit),
-    ]);
+    const [observations, measurements, careWorks, waterChanges] =
+      await Promise.all([
+        this.observationReader.listRecentOwned(keeper.id, aquariumId, limit),
+        this.measurementReader.listRecentOwned(keeper.id, aquariumId, limit),
+        this.careWorkReader.listRecentOwned(keeper.id, aquariumId, limit),
+        this.waterChangeReader.listRecentOwned(keeper.id, aquariumId, limit),
+      ]);
 
-    return [...observations, ...measurements, ...careWorks]
+    return [...observations, ...measurements, ...careWorks, ...waterChanges]
       .map((item) => toTimelineItem(item))
       .sort(compareTimelineItems)
       .slice(0, limit);

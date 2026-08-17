@@ -69,6 +69,7 @@ export interface Measurement {
   readonly measuredAt: Date;
   readonly recordedAt: Date;
   readonly provenance: MeasurementProvenance;
+  readonly correctsMeasurementId?: MeasurementId;
 }
 
 export function createMeasurement(input: {
@@ -82,6 +83,7 @@ export function createMeasurement(input: {
   readonly measuredAt: Date;
   readonly recordedAt: Date;
   readonly provenance: MeasurementProvenance;
+  readonly correctsMeasurementId?: MeasurementId;
 }): Measurement {
   if (!isParameterId(input.parameterId)) {
     throw new Error('Unsupported Measurement Parameter');
@@ -121,6 +123,10 @@ export function createMeasurement(input: {
 
   if (input.provenance !== 'manual') {
     throw new Error('Measurement provenance must be manual');
+  }
+
+  if (input.correctsMeasurementId === input.id) {
+    throw new Error('Measurement cannot correct itself');
   }
 
   return { ...input };

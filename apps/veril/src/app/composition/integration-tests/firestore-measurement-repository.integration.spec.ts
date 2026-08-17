@@ -99,6 +99,85 @@ describe('FirestoreMeasurementRepository (Emulator Suite)', () => {
   );
 
   emulatorTest(
+    'creates one append-only correction and resolves it as current',
+    async () => {
+      await signInAsKeeper();
+      const session = new FirebaseKeeperSession();
+      const keeper = await session.requireAuthenticatedKeeper();
+      const aquarium = await new FirestoreAquariumRepository().establish({
+        id: createAquariumId(),
+        name: AquariumName.create('Correcciones'),
+        ownerKeeperId: keeper.id,
+        establishedAt: new Date('2026-08-17T10:00:00.000Z'),
+      });
+      const repository = new FirestoreMeasurementRepository();
+      const originalId = measurementIdFrom(
+        '123e4567-e89b-42d3-a456-426614174020',
+      );
+      await repository.record({
+        id: originalId,
+        aquariumId: aquarium.id,
+        ownerKeeperId: keeper.id,
+        parameterId: 'temperature',
+        enteredValue: 23,
+        enteredUnit: 'celsius',
+        canonicalValue: 23,
+        canonicalUnit: 'celsius',
+        measuredAt: new Date('2026-08-17T10:01:00.000Z'),
+        recordedAt: new Date('2026-08-17T10:02:00.000Z'),
+        provenance: 'manual',
+      });
+
+      const replacementId = measurementIdFrom(
+        '123e4567-e89b-42d3-a456-426614174021',
+      );
+      const replacement = await repository.correct({
+        id: replacementId,
+        aquariumId: aquarium.id,
+        ownerKeeperId: keeper.id,
+        parameterId: 'temperature',
+        enteredValue: 24.5,
+        enteredUnit: 'celsius',
+        canonicalValue: 24.5,
+        canonicalUnit: 'celsius',
+        measuredAt: new Date('2026-08-17T10:01:00.000Z'),
+        recordedAt: new Date('2026-08-17T10:03:00.000Z'),
+        provenance: 'manual',
+        correctsMeasurementId: originalId,
+      });
+
+      expect(replacement.correctsMeasurementId).toBe(originalId);
+      await expect(
+        repository.findCurrentOwned(keeper.id, aquarium.id, 'temperature'),
+      ).resolves.toMatchObject({ id: replacementId, canonicalValue: 24.5 });
+      await expect(
+        repository.correct({
+          id: createMeasurementId(),
+          aquariumId: aquarium.id,
+          ownerKeeperId: keeper.id,
+          parameterId: 'temperature',
+          enteredValue: 25,
+          enteredUnit: 'celsius',
+          canonicalValue: 25,
+          canonicalUnit: 'celsius',
+          measuredAt: new Date('2026-08-17T10:01:00.000Z'),
+          recordedAt: new Date('2026-08-17T10:04:00.000Z'),
+          provenance: 'manual',
+          correctsMeasurementId: originalId,
+        }),
+      ).rejects.toThrow('already been corrected');
+
+      const { firestore } = getFirebaseClient();
+      const originalSnapshot = await getDoc(
+        doc(firestore, 'measurements', originalId),
+      );
+      expect(originalSnapshot.data()).toMatchObject({ canonicalValue: 23 });
+      await signOut(getFirebaseClient().auth);
+    },
+    20000,
+  );
+
+  emulatorTest(
     'persists independent manual measurements for the owner Aquarium',
     async () => {
       await signInAsKeeper();

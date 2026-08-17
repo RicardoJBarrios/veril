@@ -14,6 +14,7 @@ import {
   MeasurementTimelineItem,
   ObservationTimelineItem,
   CareWorkTimelineItem,
+  WaterChangeTimelineItem,
   ReviewRecentTimeline,
   TimelineItem,
 } from '../../application/review-recent-timeline';
@@ -77,6 +78,10 @@ export class ReviewRecentTimelinePage implements OnInit {
 
   isCareWork(item: TimelineItem): item is CareWorkTimelineItem {
     return item.kind === 'care-work';
+  }
+
+  isWaterChange(item: TimelineItem): item is WaterChangeTimelineItem {
+    return item.kind === 'water-change';
   }
 
   measurementLabel(item: MeasurementTimelineItem): string {

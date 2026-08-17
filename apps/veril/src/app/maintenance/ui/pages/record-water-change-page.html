@@ -1,0 +1,78 @@
+<section aria-labelledby="record-water-change-title" class="page-section">
+  <mat-card appearance="outlined">
+    <mat-card-header>
+      <mat-card-title id="record-water-change-title"
+        >Registrar cambio de agua</mat-card-title
+      >
+      <mat-card-subtitle
+        >Guarda el volumen reemplazado en el acuario
+        seleccionado.</mat-card-subtitle
+      >
+    </mat-card-header>
+    <mat-card-content>
+      @if (!hasActiveContext) {
+      <p role="status" class="feedback">
+        Primero selecciona un acuario para registrar un cambio de agua.
+      </p>
+      } @else if (state() === 'success') {
+      <p role="status" class="feedback feedback-success">
+        Cambio de agua guardado correctamente.
+      </p>
+      <a mat-flat-button color="primary" routerLink="/app/aquariums/maintenance"
+        >Ver cambios de agua</a
+      >
+      } @else {
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>Volumen reemplazado (litros)</mat-label>
+          <input
+            matInput
+            data-testid="water-change-volume"
+            type="number"
+            min="0"
+            step="any"
+            formControlName="volumeLitres"
+          />
+          @if (form.controls.volumeLitres.touched &&
+          form.controls.volumeLitres.invalid) {
+          <mat-error role="alert">Indica un volumen positivo.</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha y hora del cambio</mat-label>
+          <input
+            matInput
+            data-testid="water-change-performed-at"
+            type="datetime-local"
+            formControlName="performedAt"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Notas (opcional)</mat-label>
+          <textarea
+            matInput
+            data-testid="water-change-notes"
+            rows="4"
+            formControlName="notes"
+          ></textarea>
+        </mat-form-field>
+        @if (state() === 'error') {
+        <p role="alert" class="feedback feedback-error">{{ errorMessage() }}</p>
+        }
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          data-testid="water-change-submit"
+          [disabled]="state() === 'saving'"
+        >
+          {{ state() === 'saving' ? 'Guardando…' : 'Guardar cambio de agua' }}
+        </button>
+      </form>
+      }
+    </mat-card-content>
+    <mat-card-actions>
+      <a mat-button routerLink="/app/aquariums">Volver a mis acuarios</a>
+    </mat-card-actions>
+  </mat-card>
+</section>

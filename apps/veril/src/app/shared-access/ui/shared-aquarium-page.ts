@@ -40,6 +40,8 @@ export class SharedAquariumPage {
     'plannedCareWorks',
     'recurringCarePlans',
     'livestock',
+    'equipment',
+    'waterChanges',
   ] as const;
   private readonly service = inject<AquariumAccessService>(
     AQUARIUM_ACCESS_SERVICE,

@@ -613,6 +613,40 @@ describe('Firestore Security Rules (Emulator Suite)', () => {
       ).toBe(200);
       expect(
         (
+          await writeMeasurement(
+            createAquariumId(),
+            aquariumId,
+            viewer.localId,
+            viewer.idToken,
+            {
+              correctsMeasurementId: { stringValue: measurementId },
+            },
+          )
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await fetch(documentUrl('measurementCorrections', measurementId), {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${viewer.idToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fields: {
+                aquariumId: { stringValue: aquariumId },
+                ownerId: { stringValue: viewer.localId },
+                replacementMeasurementId: {
+                  stringValue: createAquariumId(),
+                },
+                createdAt: { timestampValue: new Date().toISOString() },
+              },
+            }),
+          })
+        ).status,
+      ).toBe(403);
+      expect(
+        (
           await fetch(documentUrl('observations', observationId), {
             headers: { Authorization: `Bearer ${viewer.idToken}` },
           })

@@ -213,7 +213,8 @@ are sufficient.
 
 - alternative input Units and conversions;
 - sensor and imported provenance;
-- correction, editing and deletion;
+- editing and deletion; correction is defined by the separate accepted
+  `Correct Measurement` capability.
 - history, charts, Timeline and aggregations;
 - recommended ranges and diagnostic interpretation;
 - offline recording and synchronization;

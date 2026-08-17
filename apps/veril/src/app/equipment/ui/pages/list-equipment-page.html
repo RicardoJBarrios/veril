@@ -1,0 +1,79 @@
+<section aria-labelledby="equipment-title" class="page-section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Sistemas</p>
+      <h2 id="equipment-title">Equipment</h2>
+    </div>
+    <div class="actions">
+      <a mat-stroked-button routerLink="/app/aquariums/equipment/transfer"
+        >Transferir</a
+      >
+      <a
+        mat-flat-button
+        color="primary"
+        routerLink="/app/aquariums/equipment/new"
+        data-testid="equipment-add"
+        >Añadir equipo</a
+      >
+    </div>
+  </div>
+  @if (state() === 'no-context') {
+  <mat-card appearance="outlined"
+    ><mat-card-content
+      ><p role="status">Primero selecciona un acuario.</p>
+      <a mat-button routerLink="/app/aquariums">Volver</a></mat-card-content
+    ></mat-card
+  >
+  } @else if (state() === 'loading') {
+  <div role="status">
+    <mat-progress-spinner mode="indeterminate" diameter="32" /> Cargando
+    equipment…
+  </div>
+  } @else if (state() === 'failure') {
+  <div role="alert">
+    <p>{{ errorMessage() }}</p>
+    <button mat-stroked-button (click)="retry()">Reintentar</button>
+  </div>
+  } @else if (state() === 'empty') {
+  <mat-card appearance="outlined"
+    ><mat-card-content
+      ><p>Aún no hay equipos activos.</p>
+      <a mat-flat-button routerLink="/app/aquariums/equipment/new"
+        >Añadir equipo</a
+      ></mat-card-content
+    ></mat-card
+  >
+  } @else {
+  <ul aria-label="Equipment del acuario" data-testid="equipment-list">
+    @for (item of items(); track item.id) {
+    <li>
+      <mat-card appearance="outlined"
+        ><mat-card-content
+          ><h3 data-testid="equipment-item-name">{{ item.name }}</h3>
+          <p>{{ item.category }}</p>
+          @if (item.manufacturer || item.model) {
+          <p>{{ item.manufacturer }} {{ item.model }}</p>
+          }<a mat-button [routerLink]="['/app/aquariums/equipment', item.id]"
+            >Editar</a
+          ><button
+            mat-button
+            type="button"
+            data-testid="equipment-retire"
+            (click)="retire(item.id)"
+          >
+            Retirar
+          </button></mat-card-content
+        ></mat-card
+      >
+    </li>
+    }
+  </ul>
+  <veril-pagination-controls
+    [hasNextPage]="!!nextCursor()"
+    [isLoading]="isLoadingMore()"
+    [pageSize]="pageSize()"
+    (nextPage)="loadMore()"
+    (pageSizeChange)="changePageSize($event)"
+  />
+  }
+</section>

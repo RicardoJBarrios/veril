@@ -10,6 +10,7 @@ consistency boundary still needs a use case and invariant before implementation.
 | Livestock record         | Preserve the identity and current association of an organism or group.             | Individual versus group, transfer, lifecycle and association rules.                                                               |
 | Equipment association    | Describe an equipment item's relationship to an Aquarium or System.                | Ownership, sharing, installation and safety constraints.                                                                          |
 | Care task                | Coordinate a planned care action and its completion state.                         | Recurrence, completion, cancellation and historical trace.                                                                        |
+| Water Change             | Preserve a completed water-replacement fact with volume and timestamps.            | Positive finite volume, append-only history, ownership and delegated read access.                                                 |
 | Recorded observation     | Preserve a reported observation or measurement when the use case requires history. | Provenance, correction, units, quality and offline behavior.                                                                      |
 | Automation rule          | Represent a permitted automated or recommended action.                             | Authorization, safety, idempotency, audit and online requirements.                                                                |
 

@@ -47,8 +47,9 @@ colony is represented as a group in the first Livestock workflow.
 ### Equipment
 
 A physical or logical device used by an Aquarium or System, such as lighting,
-pumps, probes or controllers. Its ownership, sharing and lifecycle remain
-use-case-dependent.
+pumps, probes or controllers. In the accepted Equipment workflow it is an
+independent aggregate owned by the Aquarium's keeper, associated with one
+Aquarium at a time, and retired through a traceable soft delete.
 
 ## Observations and operations
 
@@ -130,8 +131,9 @@ planned intention; those actions do not themselves stop the recurring plan.
 
 ### Water Change
 
-A term for care work involving aquarium water replacement. Whether it is a
-distinct Event, a Maintenance subtype or another concept is still to be defined.
+A completed water-replacement fact with a required positive volume and separate
+performed and recorded timestamps. In the accepted first Maintenance workflow,
+it is an independent aggregate and is not generic Care Work.
 
 ### Feeding
 

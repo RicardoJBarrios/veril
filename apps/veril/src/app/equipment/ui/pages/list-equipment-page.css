@@ -1,0 +1,16 @@
+.page-section {
+  display: grid;
+  gap: 1rem;
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+ul {
+  display: grid;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+}

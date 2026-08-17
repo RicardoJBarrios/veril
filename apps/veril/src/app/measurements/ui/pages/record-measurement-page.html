@@ -2,10 +2,13 @@
   <mat-card appearance="outlined">
     <mat-card-header>
       <mat-card-title id="record-measurement-title"
-        >Registrar medición</mat-card-title
+        >{{ isCorrection() ? 'Corregir medición' : 'Registrar medición'
+        }}</mat-card-title
       >
       <mat-card-subtitle
-        >Registra una medición del acuario seleccionado.</mat-card-subtitle
+        >{{ isCorrection() ? 'Crea una corrección sin borrar la evidencia
+        original.' : 'Registra una medición del acuario seleccionado.'
+        }}</mat-card-subtitle
       >
     </mat-card-header>
 
@@ -14,9 +17,14 @@
       <p role="status" class="feedback">
         Primero selecciona un acuario para registrar una medición.
       </p>
+      } @else if (targetState() === 'loading') {
+      <p role="status" class="feedback">Cargando medición…</p>
+      } @else if (targetState() === 'error') {
+      <p role="alert" class="feedback feedback-error">{{ errorMessage() }}</p>
       } @else if (state() === 'success') {
       <p role="status" class="feedback feedback-success">
-        Medición guardada correctamente.
+        {{ isCorrection() ? 'Corrección guardada correctamente.' : 'Medición
+        guardada correctamente.' }}
       </p>
       } @else {
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -64,6 +72,10 @@
 
         @if (state() === 'error') {
         <p role="alert" class="feedback feedback-error">{{ errorMessage() }}</p>
+        } @if (isCorrection()) {
+        <p class="feedback">
+          La medición original permanecerá en el historial.
+        </p>
         }
 
         <button
@@ -72,7 +84,8 @@
           type="submit"
           [disabled]="state() === 'saving'"
         >
-          {{ state() === 'saving' ? 'Guardando…' : 'Guardar medición' }}
+          {{ state() === 'saving' ? 'Guardando…' : isCorrection() ? 'Guardar
+          corrección' : 'Guardar medición' }}
         </button>
       </form>
       }

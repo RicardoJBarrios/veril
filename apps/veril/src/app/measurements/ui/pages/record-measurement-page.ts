@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  OnInit,
   signal,
 } from '@angular/core';
 import {
@@ -11,13 +12,16 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ActiveAquariumContext } from '../../../shared/application/active-aquarium-context';
 import { RecordMeasurement } from '../../application/record-measurement';
-import { ParameterId } from '../../domain/measurement';
+import { CorrectMeasurement } from '../../application/correct-measurement';
+import { ReviewMeasurementForCorrection } from '../../application/review-measurement-for-correction';
+import { measurementIdFrom, ParameterId } from '../../domain/measurement';
 import { KEEPER_SESSION, MEASUREMENT_WRITER } from '../providers';
 import {
   PARAMETER_PRESENTATIONS,
@@ -55,12 +59,25 @@ type PageState = FormPageState;
     },
   ],
 })
-export class RecordMeasurementPage {
+export class RecordMeasurementPage implements OnInit {
   private readonly recordMeasurement = inject(RecordMeasurement);
+  private readonly correctMeasurement = inject(CorrectMeasurement, {
+    optional: true,
+  });
+  private readonly reviewMeasurementForCorrection = inject(
+    ReviewMeasurementForCorrection,
+    { optional: true },
+  );
+  private readonly route = inject(ActivatedRoute);
   private readonly activeContext = inject(ActiveAquariumContext);
 
   readonly parameters = parameters;
   readonly state = signal<PageState>('ready');
+  readonly targetState = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  readonly isCorrection = signal(false);
+  readonly targetId = signal<ReturnType<typeof measurementIdFrom> | undefined>(
+    undefined,
+  );
   readonly errorMessage = signal('');
   readonly form = new FormGroup({
     parameterId: new FormControl<ParameterId>('temperature', {
@@ -76,6 +93,22 @@ export class RecordMeasurementPage {
       validators: [Validators.required],
     }),
   });
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    this.isCorrection.set(true);
+    this.targetState.set('loading');
+    try {
+      this.targetId.set(measurementIdFrom(id));
+      const targetId = this.targetId();
+      if (!targetId) throw new Error('Measurement id is required');
+      void this.loadTarget(targetId);
+    } catch {
+      this.targetState.set('error');
+      this.errorMessage.set('La medición indicada no es válida.');
+    }
+  }
 
   get hasActiveContext(): boolean {
     return this.activeContext.get() !== null;
@@ -103,11 +136,18 @@ export class RecordMeasurementPage {
     this.errorMessage.set('');
 
     try {
-      await this.recordMeasurement.execute(
-        this.form.controls.parameterId.value,
-        value,
-        measuredAt,
-      );
+      if (this.isCorrection()) {
+        const targetId = this.targetId();
+        if (!targetId || !this.correctMeasurement)
+          throw new Error('Correction unavailable');
+        await this.correctMeasurement.execute(targetId, value, measuredAt);
+      } else {
+        await this.recordMeasurement.execute(
+          this.form.controls.parameterId.value,
+          value,
+          measuredAt,
+        );
+      }
       this.form.controls.value.reset();
       this.state.set('success');
     } catch {
@@ -115,6 +155,30 @@ export class RecordMeasurementPage {
         'No se ha podido guardar la medición. Inténtalo de nuevo.',
       );
       this.state.set('error');
+    }
+  }
+
+  private async loadTarget(
+    targetId: ReturnType<typeof measurementIdFrom>,
+  ): Promise<void> {
+    if (!this.reviewMeasurementForCorrection) {
+      this.targetState.set('error');
+      this.errorMessage.set('No se puede corregir esta medición.');
+      return;
+    }
+    try {
+      const target =
+        await this.reviewMeasurementForCorrection.execute(targetId);
+      this.form.patchValue({
+        parameterId: target.parameterId,
+        value: String(target.canonicalValue),
+        measuredAt: currentDateTimeLocal(target.measuredAt),
+      });
+      this.form.controls.parameterId.disable();
+      this.targetState.set('ready');
+    } catch {
+      this.targetState.set('error');
+      this.errorMessage.set('No se ha podido cargar la medición.');
     }
   }
 }

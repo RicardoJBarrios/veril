@@ -71,6 +71,15 @@
               {{ formatMeasuredAt(item) }}
             </time>
             <span>{{ formatMeasurementAge(item) }}</span>
+            @if (item.correctsMeasurementId) {
+            <span>Corrección de una medición anterior</span>
+            } @else {
+            <a
+              mat-button
+              [routerLink]="['/app/aquariums/measurements', item.id, 'correct']"
+              >Corregir</a
+            >
+            }
           </div>
         </mat-card-content>
       </mat-card>

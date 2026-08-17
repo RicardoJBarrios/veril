@@ -50,10 +50,13 @@ Transfer preserves the previous Aquarium association and lifecycle history.
 Removal is a soft delete: the record remains available for traceability but is
 not active. Further lifecycle states are deferred.
 
-## Equipment association
+## Equipment lifecycle
 
 ```text
-associated -> no longer associated
+active ── transfer ──> active in another owned Aquarium
+active ── retire ────> retired
 ```
 
-Installation, activation, shared use and failure states are pending.
+Retirement is a soft delete. The root and association history remain available
+to the owner for traceability. Installation, failure and automation states are
+deferred.

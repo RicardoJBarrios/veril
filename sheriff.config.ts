@@ -7,6 +7,8 @@ const contexts = [
   'observations',
   'timeline',
   'livestock',
+  'equipment',
+  'maintenance',
   'species-knowledge',
 ] as const;
 
@@ -70,6 +72,8 @@ export const config: SheriffConfig = {
     'context:observations': ['context:observations', 'context:shared'],
     'context:timeline': ['context:timeline', 'context:shared'],
     'context:livestock': ['context:livestock', 'context:shared'],
+    'context:equipment': ['context:equipment', 'context:shared'],
+    'context:maintenance': ['context:maintenance', 'context:shared'],
     'context:species-knowledge': [
       'context:species-knowledge',
       'context:shared',
@@ -83,6 +87,8 @@ export const config: SheriffConfig = {
       'context:observations',
       'context:timeline',
       'context:livestock',
+      'context:equipment',
+      'context:maintenance',
       'context:species-knowledge',
       'context:shared',
     ],
@@ -94,6 +100,8 @@ export const config: SheriffConfig = {
       'context:observations',
       'context:timeline',
       'context:livestock',
+      'context:equipment',
+      'context:maintenance',
       'context:species-knowledge',
       'context:shared',
       'context:composition',

@@ -227,8 +227,24 @@ test('a keeper can establish, select and record Aquarium evidence', async ({
   await expect(page).toHaveURL('/app/aquariums/measurements');
   await expect(page.getByTestId('measurement-list')).toContainText('25.4 °C');
 
+  await page.getByRole('link', { name: 'Corregir' }).first().click();
+  await expect(page).toHaveURL(/\/app\/aquariums\/measurements\/.*\/correct/);
+  await page.getByLabel('Valor').fill('26.1');
+  await page.getByRole('button', { name: 'Guardar corrección' }).click();
+  await expect(page.getByRole('status')).toContainText(
+    'Corrección guardada correctamente.',
+  );
+  await page.getByRole('link', { name: 'Ver mediciones' }).click();
+  await expect(page.getByTestId('measurement-list')).toContainText('26.1 °C');
+  await expect(page.getByTestId('measurement-list')).toContainText(
+    'Corrección de una medición anterior',
+  );
+
   await page.getByRole('link', { name: 'Volver a mis acuarios' }).click();
   await page.getByRole('link', { name: 'Abrir acuario seleccionado' }).click();
+  await expect(page.getByTestId('current-measurements')).toContainText(
+    '26.1 °C',
+  );
   await page
     .getByTestId('upcoming-care-preview')
     .getByRole('link', { name: 'Planificar cuidado' })

@@ -6,11 +6,14 @@ import { FirestoreAquariumRepository } from '../../../aquarium-management/infras
 import { FirestoreCareWorkRepository } from '../../../care/infrastructure/firestore-care-work-repository';
 import { FirestoreMeasurementRepository } from '../../../measurements/infrastructure/firestore-measurement-repository';
 import { FirestoreObservationRepository } from '../../../observations/infrastructure/firestore-observation-repository';
+import { TimelineWaterChangeAdapter } from '../../../composition/timeline/timeline-water-changes';
+import { WATER_CHANGE_READER } from '../../../maintenance/ui/providers';
 import {
   TIMELINE_AQUARIUM_CONTEXT_READER,
   TIMELINE_CARE_WORK_READER,
   TIMELINE_MEASUREMENT_READER,
   TIMELINE_OBSERVATION_READER,
+  TIMELINE_WATER_CHANGE_READER,
 } from '../../../timeline/ui/providers';
 
 export const PRIVATE_TIMELINE_PROVIDERS: Provider[] = [
@@ -50,12 +53,18 @@ export const PRIVATE_TIMELINE_PROVIDERS: Provider[] = [
     useClass: FirestoreAquariumRepository,
   },
   {
+    provide: TIMELINE_WATER_CHANGE_READER,
+    useFactory: () =>
+      new TimelineWaterChangeAdapter(inject(WATER_CHANGE_READER)),
+  },
+  {
     provide: ReviewRecentTimeline,
     useFactory: () =>
       new ReviewRecentTimeline(
         inject(TIMELINE_OBSERVATION_READER),
         inject(TIMELINE_MEASUREMENT_READER),
         inject(TIMELINE_CARE_WORK_READER),
+        inject(TIMELINE_WATER_CHANGE_READER),
         inject(KEEPER_SESSION),
         inject(ActiveAquariumContext),
       ),

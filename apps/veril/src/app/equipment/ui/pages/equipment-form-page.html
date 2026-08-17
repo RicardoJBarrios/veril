@@ -1,0 +1,49 @@
+<section aria-labelledby="equipment-form-title" class="page-section">
+  <mat-card appearance="outlined"
+    ><mat-card-content
+      ><h2 id="equipment-form-title">
+        {{ editingId() ? 'Editar equipo' : 'Añadir equipo' }}
+      </h2>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <mat-form-field appearance="outline"
+          ><mat-label>Nombre</mat-label
+          ><input
+            matInput
+            formControlName="name"
+            data-testid="equipment-name" /></mat-form-field
+        ><mat-form-field appearance="outline"
+          ><mat-label>Categoría</mat-label
+          ><mat-select
+            formControlName="category"
+            data-testid="equipment-category"
+            >@for (category of categories; track category) {<mat-option
+              [value]="category"
+              >{{ category }}</mat-option
+            >}</mat-select
+          ></mat-form-field
+        ><mat-form-field appearance="outline"
+          ><mat-label>Fabricante</mat-label
+          ><input matInput formControlName="manufacturer" /></mat-form-field
+        ><mat-form-field appearance="outline"
+          ><mat-label>Modelo</mat-label
+          ><input matInput formControlName="model" /></mat-form-field
+        ><mat-form-field appearance="outline"
+          ><mat-label>Número de serie</mat-label
+          ><input matInput formControlName="serialNumber" /></mat-form-field
+        >@if (errorMessage()) {
+        <p role="alert">{{ errorMessage() }}</p>
+        }
+        <div class="actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            data-testid="equipment-save"
+          >
+            Guardar</button
+          ><a mat-button routerLink="/app/aquariums/equipment">Cancelar</a>
+        </div>
+      </form></mat-card-content
+    ></mat-card
+  >
+</section>

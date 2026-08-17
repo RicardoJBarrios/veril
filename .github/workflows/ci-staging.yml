@@ -65,6 +65,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec nx build veril --configuration=production
+      - run: pnpm exec playwright install --with-deps chromium
 
       # Configure FIREBASE_SERVICE_ACCOUNT_STAGING in the protected staging
       # environment. The account only needs Firebase Hosting deploy access.
@@ -75,3 +76,5 @@ jobs:
       - run: pnpm exec firebase deploy --project veril-staging --only hosting
       - name: Verify staging deployment
         run: curl --fail --silent --show-error --retry 5 --retry-delay 2 --retry-all-errors --location --head https://veril-staging.web.app
+      - name: Run staging browser smoke test
+        run: node tools/ci/staging-smoke.mjs

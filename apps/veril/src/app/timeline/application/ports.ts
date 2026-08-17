@@ -19,11 +19,20 @@ export interface TimelineMeasurement {
   readonly measuredAt: Date;
   readonly recordedAt: Date;
   readonly provenance: 'manual';
+  readonly correctsMeasurementId?: string;
 }
 
 export interface TimelineCareWork {
   readonly id: string;
   readonly description: string;
+  readonly performedAt: Date;
+  readonly recordedAt: Date;
+}
+
+export interface TimelineWaterChange {
+  readonly id: string;
+  readonly volumeLitres: number;
+  readonly notes?: string;
   readonly performedAt: Date;
   readonly recordedAt: Date;
 }
@@ -50,6 +59,14 @@ export interface TimelineCareWorkReader {
     aquariumId: AquariumId,
     limit: number,
   ): Promise<readonly TimelineCareWork[]>;
+}
+
+export interface TimelineWaterChangeReader {
+  listRecentOwned(
+    ownerKeeperId: string,
+    aquariumId: AquariumId,
+    limit: number,
+  ): Promise<readonly TimelineWaterChange[]>;
 }
 
 export type ObservationListItem = TimelineObservation;

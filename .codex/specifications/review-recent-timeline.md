@@ -1,16 +1,17 @@
 # Review Recent Timeline
 
-**Status:** Accepted and implemented with Care Work
+**Status:** Accepted and implemented with Care Work and Water Changes
 
 ## User value
 
 An authenticated keeper can answer “what happened recently in this Aquarium?”
-by reviewing qualitative Observations, quantitative Measurements and completed
-Care Work together in one chronological read surface.
+by reviewing qualitative Observations, quantitative Measurements, completed
+Care Work and recorded Water Changes together in one chronological read
+surface.
 
 This is a recent contextual view, not a complete historical archive. The
-existing Observation, Measurement and Care Work records remain the sources of
-truth.
+existing Observation, Measurement, Care Work and Water Change records remain
+the sources of truth.
 
 ## Actor and preconditions
 
@@ -20,8 +21,9 @@ is directed to Aquarium selection.
 
 ## Scope
 
-The increment reads only the existing Observation, Measurement and Care Work
-sources. It does not include Domain Events that have no persisted source yet,
+The increment reads only the existing Observation, Measurement, Care Work and
+Water Change sources. It does not include Domain Events that have no persisted
+source yet,
 Livestock, Equipment, Interpretations, charts, filters, grouping, editing,
 deletion or Timeline mutations.
 
@@ -65,6 +67,15 @@ CareWorkTimelineItem
   effectiveAt
   performedAt
   recordedAt
+
+WaterChangeTimelineItem
+  kind: water-change
+  waterChangeId
+  volumeLitres
+  notes?
+  effectiveAt
+  performedAt
+  recordedAt
 ```
 
 `effectiveAt` exists only in the read model. It is not added to either source
@@ -78,13 +89,15 @@ aggregate or Firestore document.
   quantitative condition was measured.
 - Care Work `effectiveAt` is `performedAt`, because it represents when the
   intentional action occurred.
+- Water Change `effectiveAt` is `performedAt`, because it represents when the
+  recorded maintenance action occurred.
 
 The total order is:
 
 1. `effectiveAt` descending;
 2. `recordedAt` descending;
 3. source kind using the explicit order `measurement`, `observation`,
-   `care-work`;
+   `care-work`, `water-change`;
 4. source identifier ascending.
 
 The third and fourth dimensions are deterministic tie-breakers only. They do
@@ -93,7 +106,7 @@ does not alter either source list's accepted ordering.
 
 ## Query architecture
 
-The implementation executes three owner- and Aquarium-scoped bounded queries,
+The implementation executes four owner- and Aquarium-scoped bounded queries,
 one per source, then merges their read models in the application/read boundary.
 It must not read an unbounded collection.
 
@@ -114,7 +127,7 @@ not justified by the current value of a recent bounded view.
 
 `timelineItems` is not introduced now. A materialized projection may become
 appropriate when a real consumer needs complete history, low-latency repeated
-reads or additional sources beyond the current three. It would then require an
+reads or additional sources beyond the current four. It would then require an
 explicit backfill, ownership, consistency and rebuild policy. It must never
 replace Observation or Measurement history.
 
@@ -129,7 +142,7 @@ authorization. Timeline exposes no additional private-resource existence.
 The minimum page shows:
 
 - a clear “Actividad reciente” or equivalent heading;
-- visibly distinct Observation, Measurement and Care Work items;
+- visibly distinct Observation, Measurement, Care Work and Water Change items;
 - the relevant time;
 - Observation text;
 - Measurement Parameter, canonical value and Unit;
@@ -142,13 +155,13 @@ selected Aquarium context.
 ## Testing path
 
 - application: merge variants, effective-time ordering, ties, empty and source
-  failure behavior across all three sources;
-- integration: the three owner-scoped source queries, mapping and malformed-
+  failure behavior across all four sources;
+- integration: the four owner-scoped source queries, mapping and malformed-
   source rejection;
-- Angular: mixed rendering, Care Work semantics, loading, empty, error and
+- Angular: mixed rendering, Care Work and Water Change semantics, loading, empty, error and
   missing context;
-- E2E: record one Observation, one Measurement and one Care Work action, open
-  recent Timeline and verify all three are visible.
+- E2E: record one Observation, one Measurement, one Care Work action and one
+  Water Change, open recent Timeline and verify all four are visible.
 
 The increment does not require Signal Store, CQRS, Event Sourcing, a
 generic projection framework, a generic multi-source paginator or an Nx library.

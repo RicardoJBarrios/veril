@@ -16,7 +16,7 @@ Rules are classified to avoid turning assumptions into code prematurely.
 - A delegated access grant belongs to exactly one Aquarium and one grantee.
 - The owner chooses the readable resource categories independently: Aquarium
   metadata, Measurements, Observations, Care Work, Planned Care Work or
-  Livestock.
+  Livestock or Equipment.
 - A delegated grantee cannot create, update, delete, transfer or revoke any
   Aquarium data or access grant.
 - The owner may revoke a grant. Revocation is retained for traceability and
@@ -60,6 +60,25 @@ Rules are classified to avoid turning assumptions into code prematurely.
 - The first slice is append-only and online-required. Planning, recurrence,
   reminders, correction, deletion and offline synchronization are deferred.
 - Recording Care Work does not automatically create a Domain Event.
+
+## Accepted rules for Record Water Change
+
+- A Water Change records one completed water replacement for exactly one
+  Aquarium and is an independent Maintenance aggregate and durable Fact.
+- The replacement volume is required, finite and strictly positive, expressed
+  in litres. A Water Change cannot be inferred from a Measurement or Care Work.
+- `performedAt` describes when the replacement happened; `recordedAt` describes
+  when Veril accepted the evidence. Both are retained and must be valid.
+- Notes are optional free text and are trimmed at the domain boundary; they do
+  not replace the required volume or timestamps.
+- Only the owning authenticated keeper may create or privately read Water
+  Changes. A delegated guest may read them only through an explicit
+  Aquarium-scoped `waterChanges` grant.
+- Water Changes are append-only and online-required in the first slice.
+  Editing, deletion, correction, scheduling, chemistry and batch provenance
+  require separate accepted decisions.
+- Recording a Water Change does not create a Measurement, Care Work record or
+  Timeline source automatically.
 
 ## Accepted rules for Planned Care Work
 
@@ -132,6 +151,20 @@ Rules are classified to avoid turning assumptions into code prematurely.
   and are not implied by the Measurement catalogue. Parameter Status compares
   only the latest known value with an explicit keeper target.
 
+## Accepted rules for Correct Measurement
+
+- Only the owning authenticated keeper may correct a Measurement.
+- A correction creates one new immutable Measurement Fact referencing the
+  original through `correctsMeasurementId`; it never updates or deletes the
+  original.
+- The original Parameter and canonical Unit remain unchanged. The correction
+  may replace only the value and `measuredAt` in this increment.
+- An original Measurement may be corrected at most once. A correction cannot
+  itself be corrected in this increment.
+- The replacement and its technical uniqueness marker are created atomically.
+- A delegated guest may read the original and replacement when the Aquarium
+  grant includes `measurements`, but cannot create, correct or delete either.
+
 ## Parameter policy
 
 - The MVP Parameter catalogue is closed and system-defined; users cannot add
@@ -158,10 +191,12 @@ decided in a use-case specification before code, Rules, events or persistence
 enforce them:
 
 - Whether an Aquarium is the ownership boundary for Measurements.
-- Whether Measurements are immutable, editable or corrected by compensation.
+- Whether Measurement corrections may include a reason or appear differently
+  in Timeline remains a presentation decision.
 - Livestock belongs to one Aquarium at a time; an accepted transfer records the
   previous association and moves it to another Aquarium owned by the keeper.
-- Whether Water Change is a distinct domain Event.
+- Whether future Water Change corrections are compensating Facts or an explicit
+  correction workflow.
 - Whether an Observation may correct, qualify or otherwise relate to a
   Measurement.
 
@@ -170,7 +205,9 @@ enforce them:
 These are preferred behaviors, but require product confirmation before becoming
 enforced invariants:
 
-- Equipment may be shared by more than one Aquarium when ownership allows it.
+- Equipment is an independent aggregate owned by the keeper through one
+  Aquarium association at a time. Read-only sharing is granted per Aquarium;
+  shared ownership is not part of the first workflow.
 - Measurements may need timestamp, source and provenance where available.
 - Events may need stable identifiers and original time.
 - Timeline views should expose stale, cached or pending information clearly.
@@ -184,7 +221,8 @@ These are likely to matter but must wait for concrete features:
 - Sensor calibration and measurement-quality rules.
 - Controller safety limits and automation authorization.
 - Alert severity, acknowledgement and resolution.
-- Shared equipment ownership and permissions.
+- Sensors, controllers, installation state, failure state and automation
+  authority for Equipment.
 - Livestock transfer, grouping and identification history are governed by the
   accepted Add Livestock specification; further lifecycle states remain future.
 - Species Profiles are globally shared documentary Knowledge, not owned by a

@@ -17,7 +17,10 @@ function createContext(): ActiveAquariumContext {
 }
 
 function setup() {
-  const reader: MeasurementReader = { listOwned: vi.fn() };
+  const reader: MeasurementReader = {
+    listOwned: vi.fn(),
+    getOwned: vi.fn(),
+  };
   const keeperSession: KeeperSession = {
     requireAuthenticatedKeeper: vi.fn().mockResolvedValue({ id: 'keeper-a' }),
   };

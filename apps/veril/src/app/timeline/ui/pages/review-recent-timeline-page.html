@@ -58,7 +58,7 @@
   <ul aria-label="Actividad reciente del acuario">
     @for (item of items(); track item.kind === 'observation' ?
     item.observationId : item.kind === 'measurement' ? item.measurementId :
-    item.careWorkId) {
+    item.kind === 'care-work' ? item.careWorkId : item.waterChangeId) {
     <li>
       <mat-card appearance="outlined">
         <mat-card-content>
@@ -69,7 +69,10 @@
             {{ formatDate(item.effectiveAt) }}
           </time>
           } @else if (isMeasurement(item)) {
-          <p class="item-kind">Medición</p>
+          <p class="item-kind">
+            {{ item.correctsMeasurementId ? 'Corrección de medición' :
+            'Medición' }}
+          </p>
           <div class="measurement-row">
             <strong
               >{{ measurementLabel(item) }}: {{ item.canonicalValue }} {{
@@ -82,6 +85,15 @@
           } @else if (isCareWork(item)) {
           <p class="item-kind">Cuidado</p>
           <p class="observation-content">{{ item.description }}</p>
+          <time [attr.datetime]="item.effectiveAt.toISOString()">
+            {{ formatDate(item.performedAt) }}
+          </time>
+          } @else if (isWaterChange(item)) {
+          <p class="item-kind">Cambio de agua</p>
+          <p class="observation-content">{{ item.volumeLitres }} litros</p>
+          @if (item.notes) {
+          <p class="observation-content">{{ item.notes }}</p>
+          }
           <time [attr.datetime]="item.effectiveAt.toISOString()">
             {{ formatDate(item.performedAt) }}
           </time>

@@ -4,8 +4,10 @@ import {
   collection,
   doc,
   documentId,
+  getDoc,
   orderBy,
   query,
+  runTransaction,
   setDoc,
   where,
 } from 'firebase/firestore';
@@ -15,12 +17,14 @@ import {
   createMeasurement,
   measurementIdFrom,
   Measurement,
+  MeasurementId,
   ParameterId,
   PARAMETER_IDS,
   UNIT_IDS,
 } from '../domain/measurement';
 import {
   MeasurementWriter,
+  MeasurementCorrector,
   MeasurementCursor,
   CurrentMeasurementReader,
   MeasurementListItem,
@@ -28,6 +32,7 @@ import {
   MeasurementReader,
   TimelineMeasurementReader,
   RecordMeasurementInput,
+  CorrectMeasurementInput,
 } from '../application/ports';
 import {
   AquariumId,
@@ -53,6 +58,7 @@ const measurementDocument = z.object({
   measuredAt: z.custom<Timestamp>(isFirestoreTimestamp),
   recordedAt: z.custom<Timestamp>(isFirestoreTimestamp),
   provenance: z.literal('manual'),
+  correctsMeasurementId: z.string().uuid().optional(),
 });
 
 const measurementCursor = z.object({
@@ -109,6 +115,9 @@ function toDomain(
     measuredAt: data.measuredAt.toDate(),
     recordedAt: data.recordedAt.toDate(),
     provenance: data.provenance,
+    ...(data.correctsMeasurementId
+      ? { correctsMeasurementId: measurementIdFrom(data.correctsMeasurementId) }
+      : {}),
   });
 }
 
@@ -126,6 +135,9 @@ function toListItem(
     measuredAt: measurement.measuredAt,
     recordedAt: measurement.recordedAt,
     provenance: measurement.provenance,
+    ...(measurement.correctsMeasurementId
+      ? { correctsMeasurementId: measurement.correctsMeasurementId }
+      : {}),
   };
 }
 
@@ -133,6 +145,7 @@ function toListItem(
 export class FirestoreMeasurementRepository
   implements
     MeasurementWriter,
+    MeasurementCorrector,
     MeasurementReader,
     CurrentMeasurementReader,
     TimelineMeasurementReader
@@ -151,6 +164,9 @@ export class FirestoreMeasurementRepository
       measuredAt: Timestamp.fromDate(input.measuredAt),
       recordedAt: Timestamp.fromDate(input.recordedAt),
       provenance: input.provenance,
+      ...(input.correctsMeasurementId
+        ? { correctsMeasurementId: input.correctsMeasurementId }
+        : {}),
     });
 
     if (canonicalUnitFor(dto.parameterId) !== dto.canonicalUnit) {
@@ -159,6 +175,66 @@ export class FirestoreMeasurementRepository
 
     await setDoc(reference, dto);
     return toDomain(reference.id, dto);
+  }
+
+  async correct(input: CorrectMeasurementInput): Promise<Measurement> {
+    const { firestore } = getFirebaseClient();
+    const targetReference = doc(
+      firestore,
+      'measurements',
+      input.correctsMeasurementId,
+    );
+    const replacementReference = doc(firestore, 'measurements', input.id);
+    const markerReference = doc(
+      firestore,
+      'measurementCorrections',
+      input.correctsMeasurementId,
+    );
+    const dto = measurementDocument.parse({
+      aquariumId: input.aquariumId,
+      ownerId: input.ownerKeeperId,
+      parameterId: input.parameterId,
+      enteredValue: input.enteredValue,
+      enteredUnit: input.enteredUnit,
+      canonicalValue: input.canonicalValue,
+      canonicalUnit: input.canonicalUnit,
+      measuredAt: Timestamp.fromDate(input.measuredAt),
+      recordedAt: Timestamp.fromDate(input.recordedAt),
+      provenance: input.provenance,
+      correctsMeasurementId: input.correctsMeasurementId,
+    });
+
+    const stored = await runTransaction(firestore, async (transaction) => {
+      const [targetSnapshot, markerSnapshot] = await Promise.all([
+        transaction.get(targetReference),
+        transaction.get(markerReference),
+      ]);
+      if (!targetSnapshot.exists()) throw new Error('Measurement not found');
+      if (markerSnapshot.exists()) {
+        throw new Error('Measurement has already been corrected');
+      }
+
+      const target = measurementDocument.parse(targetSnapshot.data());
+      if (
+        target.ownerId !== input.ownerKeeperId ||
+        target.aquariumId !== input.aquariumId ||
+        target.parameterId !== input.parameterId ||
+        target.correctsMeasurementId
+      ) {
+        throw new Error('Measurement correction is not allowed');
+      }
+
+      transaction.set(replacementReference, dto);
+      transaction.set(markerReference, {
+        aquariumId: input.aquariumId,
+        ownerId: input.ownerKeeperId,
+        replacementMeasurementId: input.id,
+        createdAt: Timestamp.fromDate(input.recordedAt),
+      });
+      return dto;
+    });
+
+    return toDomain(replacementReference.id, stored);
   }
 
   async listOwned(
@@ -194,6 +270,23 @@ export class FirestoreMeasurementRepository
       map: (entry) =>
         toListItem(entry.id, measurementDocument.parse(entry.data())),
     });
+  }
+
+  async getOwned(
+    ownerKeeperId: string,
+    aquariumId: AquariumId,
+    measurementId: MeasurementId,
+  ): Promise<MeasurementListItem | null> {
+    const { firestore } = getFirebaseClient();
+    const snapshot = await getDoc(
+      doc(firestore, 'measurements', measurementId),
+    );
+    if (!snapshot.exists()) return null;
+    const data = measurementDocument.parse(snapshot.data());
+    if (data.ownerId !== ownerKeeperId || data.aquariumId !== aquariumId) {
+      return null;
+    }
+    return toListItem(snapshot.id, data);
   }
 
   async listRecentOwned(
@@ -233,13 +326,17 @@ export class FirestoreMeasurementRepository
         module.orderBy('measuredAt', 'desc'),
         module.orderBy('recordedAt', 'desc'),
         module.orderBy(module.documentId(), 'asc'),
-        module.limit(1),
+        module.limit(20),
       ),
     );
-    const entry = snapshot.docs[0];
-
-    return entry
-      ? toListItem(entry.id, measurementDocument.parse(entry.data()))
-      : null;
+    const items = snapshot.docs.map((entry) =>
+      toListItem(entry.id, measurementDocument.parse(entry.data())),
+    );
+    const correctedIds = new Set(
+      items
+        .map((item) => item.correctsMeasurementId)
+        .filter((id): id is MeasurementId => id !== undefined),
+    );
+    return items.find((item) => !correctedIds.has(item.id)) ?? null;
   }
 }

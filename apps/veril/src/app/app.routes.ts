@@ -114,6 +114,35 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'aquariums/equipment',
+        pathMatch: 'full',
+        loadComponent: () =>
+          import('./equipment/ui/pages/list-equipment-page').then(
+            ({ ListEquipmentPage }) => ListEquipmentPage,
+          ),
+      },
+      {
+        path: 'aquariums/equipment/new',
+        loadComponent: () =>
+          import('./equipment/ui/pages/equipment-form-page').then(
+            ({ EquipmentFormPage }) => EquipmentFormPage,
+          ),
+      },
+      {
+        path: 'aquariums/equipment/transfer',
+        loadComponent: () =>
+          import('./equipment/ui/pages/transfer-equipment-page').then(
+            ({ TransferEquipmentPage }) => TransferEquipmentPage,
+          ),
+      },
+      {
+        path: 'aquariums/equipment/:id',
+        loadComponent: () =>
+          import('./equipment/ui/pages/equipment-form-page').then(
+            ({ EquipmentFormPage }) => EquipmentFormPage,
+          ),
+      },
+      {
         path: 'aquariums/livestock',
         pathMatch: 'full',
         loadComponent: () =>
@@ -178,6 +207,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'aquariums/measurements/:id/correct',
+        loadComponent: () =>
+          import('./measurements/ui/pages/record-measurement-page').then(
+            ({ RecordMeasurementPage }) => RecordMeasurementPage,
+          ),
+      },
+      {
         path: 'aquariums/measurements/new',
         loadComponent: () =>
           import('./measurements/ui/pages/record-measurement-page').then(
@@ -189,6 +225,20 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./care/ui/pages/record-care-work-page').then(
             ({ RecordCareWorkPage }) => RecordCareWorkPage,
+          ),
+      },
+      {
+        path: 'aquariums/maintenance/new',
+        loadComponent: () =>
+          import('./maintenance/ui/pages/record-water-change-page').then(
+            ({ RecordWaterChangePage }) => RecordWaterChangePage,
+          ),
+      },
+      {
+        path: 'aquariums/maintenance',
+        loadComponent: () =>
+          import('./maintenance/ui/pages/list-water-changes-page').then(
+            ({ ListWaterChangesPage }) => ListWaterChangesPage,
           ),
       },
       {

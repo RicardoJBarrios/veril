@@ -75,7 +75,9 @@ service cloud.firestore {
           'careWorks',
           'plannedCareWorks',
           'recurringCarePlans',
-          'livestock'
+          'livestock',
+          'equipment',
+          'waterChanges'
         ])
         && (!permissions.keys().hasAll(['aquarium']) || permissions.aquarium is bool)
         && (!permissions.keys().hasAll(['measurements']) || permissions.measurements is bool)
@@ -83,7 +85,9 @@ service cloud.firestore {
         && (!permissions.keys().hasAll(['careWorks']) || permissions.careWorks is bool)
         && (!permissions.keys().hasAll(['plannedCareWorks']) || permissions.plannedCareWorks is bool)
         && (!permissions.keys().hasAll(['recurringCarePlans']) || permissions.recurringCarePlans is bool)
-        && (!permissions.keys().hasAll(['livestock']) || permissions.livestock is bool);
+        && (!permissions.keys().hasAll(['livestock']) || permissions.livestock is bool)
+        && (!permissions.keys().hasAll(['equipment']) || permissions.equipment is bool)
+        && (!permissions.keys().hasAll(['waterChanges']) || permissions.waterChanges is bool);
     }
 
     match /aquariumAccessGrants/{grantDocumentId} {
@@ -250,6 +254,44 @@ service cloud.firestore {
         );
     }
 
+    function isValidEquipmentAssociation(item) {
+      return item is map
+        && item.keys().hasOnly(['aquariumId', 'associatedAt', 'endedAt'])
+        && item.keys().hasAll(['aquariumId', 'associatedAt'])
+        && isBoundedText(item.aquariumId, 128)
+        && item.associatedAt is timestamp
+        && (!item.keys().hasAll(['endedAt']) || item.endedAt is timestamp);
+    }
+
+    function isValidEquipment(data) {
+      return data is map
+        && data.keys().hasOnly([
+          'aquariumId', 'ownerId', 'category', 'name', 'manufacturer', 'model',
+          'serialNumber', 'lifecycle', 'associatedAt', 'updatedAt',
+          'associationHistory'
+        ])
+        && data.keys().hasAll([
+          'aquariumId', 'ownerId', 'category', 'name', 'lifecycle',
+          'associatedAt', 'updatedAt', 'associationHistory'
+        ])
+        && isBoundedText(data.aquariumId, 128)
+        && isBoundedText(data.ownerId, 128)
+        && data.category in ['lighting', 'filtration', 'flow', 'heating', 'monitoring', 'dosing', 'other']
+        && isBoundedText(data.name, 200)
+        && (!data.keys().hasAll(['manufacturer']) || isBoundedText(data.manufacturer, 200))
+        && (!data.keys().hasAll(['model']) || isBoundedText(data.model, 200))
+        && (!data.keys().hasAll(['serialNumber']) || isBoundedText(data.serialNumber, 200))
+        && data.lifecycle in ['active', 'retired']
+        && data.associatedAt is timestamp
+        && data.updatedAt is timestamp
+        && data.associationHistory is list
+        && data.associationHistory.size() > 0
+        && data.associationHistory.size() <= 50
+        && isValidEquipmentAssociation(data.associationHistory[0])
+        && data.associationHistory[data.associationHistory.size() - 1].aquariumId == data.aquariumId
+        && !data.associationHistory[data.associationHistory.size() - 1].keys().hasAll(['endedAt']);
+    }
+
     function isBoundedText(value, maximum) {
       return value is string && value.size() > 0 && value.size() <= maximum;
     }
@@ -365,6 +407,49 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /equipment/{equipmentId} {
+      allow create: if isKeeper()
+        && isValidEquipment(request.resource.data)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.lifecycle == 'active'
+        && request.resource.data.associationHistory.size() == 1
+        && request.resource.data.associationHistory[0].aquariumId == request.resource.data.aquariumId
+        && exists(/databases/$(database)/documents/aquariums/$(request.resource.data.aquariumId))
+        && get(/databases/$(database)/documents/aquariums/$(request.resource.data.aquariumId)).data.ownerId == request.auth.uid;
+      allow get: if canReadAquarium(resource.data.aquariumId, 'equipment');
+      allow list: if hasBoundedListQuery() && canReadAquarium(resource.data.aquariumId, 'equipment');
+      allow update: if isOwner(resource.data)
+        && isValidEquipment(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && (
+          (
+            resource.data.lifecycle == 'active'
+            && request.resource.data.lifecycle == 'active'
+            && request.resource.data.aquariumId == resource.data.aquariumId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'name', 'category', 'manufacturer', 'model', 'serialNumber', 'updatedAt'
+            ])
+          )
+          || (
+            resource.data.lifecycle == 'active'
+            && request.resource.data.lifecycle == 'active'
+            && request.resource.data.aquariumId != resource.data.aquariumId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'aquariumId', 'associationHistory', 'updatedAt'
+            ])
+            && exists(/databases/$(database)/documents/aquariums/$(request.resource.data.aquariumId))
+            && get(/databases/$(database)/documents/aquariums/$(request.resource.data.aquariumId)).data.ownerId == request.auth.uid
+          )
+          || (
+            resource.data.lifecycle == 'active'
+            && request.resource.data.lifecycle == 'retired'
+            && request.resource.data.aquariumId == resource.data.aquariumId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lifecycle', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
     match /observations/{observationId} {
       allow create: if isKeeper()
         && request.resource.data.keys().hasOnly([
@@ -404,7 +489,8 @@ service cloud.firestore {
           'canonicalUnit',
           'measuredAt',
           'recordedAt',
-          'provenance'
+          'provenance',
+          'correctsMeasurementId'
         ])
         && request.resource.data.keys().hasAll([
           'aquariumId',
@@ -449,11 +535,50 @@ service cloud.firestore {
         )
         && request.resource.data.measuredAt is timestamp
         && request.resource.data.recordedAt is timestamp
-        && request.resource.data.provenance == 'manual';
+        && request.resource.data.provenance == 'manual'
+        && (
+          !request.resource.data.keys().hasAny(['correctsMeasurementId'])
+          || (
+            request.resource.data.correctsMeasurementId is string
+            && request.resource.data.correctsMeasurementId != measurementId
+            && exists(/databases/$(database)/documents/measurements/$(request.resource.data.correctsMeasurementId))
+            && get(/databases/$(database)/documents/measurements/$(request.resource.data.correctsMeasurementId)).data.ownerId == request.auth.uid
+            && get(/databases/$(database)/documents/measurements/$(request.resource.data.correctsMeasurementId)).data.aquariumId == request.resource.data.aquariumId
+            && getAfter(/databases/$(database)/documents/measurementCorrections/$(request.resource.data.correctsMeasurementId)).data.replacementMeasurementId == measurementId
+          )
+        );
 
       allow get: if canReadAquarium(resource.data.aquariumId, 'measurements');
       allow list: if hasBoundedListQuery() && canReadAquarium(resource.data.aquariumId, 'measurements');
       allow update, delete: if false;
+    }
+
+    match /measurementCorrections/{measurementId} {
+      allow create: if isKeeper()
+        && request.resource.data.keys().hasOnly([
+          'aquariumId',
+          'ownerId',
+          'replacementMeasurementId',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'aquariumId',
+          'ownerId',
+          'replacementMeasurementId',
+          'createdAt'
+        ])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.aquariumId is string
+        && request.resource.data.replacementMeasurementId is string
+        && request.resource.data.createdAt is timestamp
+        && exists(/databases/$(database)/documents/measurements/$(measurementId))
+        && get(/databases/$(database)/documents/measurements/$(measurementId)).data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/measurements/$(measurementId)).data.aquariumId == request.resource.data.aquariumId
+        && getAfter(/databases/$(database)/documents/measurements/$(request.resource.data.replacementMeasurementId)).data.correctsMeasurementId == measurementId;
+      allow get: if isKeeper()
+        && exists(/databases/$(database)/documents/measurements/$(measurementId))
+        && get(/databases/$(database)/documents/measurements/$(measurementId)).data.ownerId == request.auth.uid;
+      allow list, update, delete: if false;
     }
 
     match /careWorks/{careWorkId} {
@@ -485,6 +610,41 @@ service cloud.firestore {
 
       allow get: if canReadAquarium(resource.data.aquariumId, 'careWorks');
       allow list: if hasBoundedListQuery() && canReadAquarium(resource.data.aquariumId, 'careWorks');
+      allow update, delete: if false;
+    }
+
+    match /waterChanges/{waterChangeId} {
+      allow create: if isKeeper()
+        && request.resource.data.keys().hasOnly([
+          'aquariumId',
+          'ownerId',
+          'volumeLitres',
+          'performedAt',
+          'recordedAt',
+          'notes',
+          'provenance'
+        ])
+        && request.resource.data.keys().hasAll([
+          'aquariumId',
+          'ownerId',
+          'volumeLitres',
+          'performedAt',
+          'recordedAt',
+          'provenance'
+        ])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.aquariumId is string
+        && exists(/databases/$(database)/documents/aquariums/$(request.resource.data.aquariumId))
+        && get(/databases/$(database)/documents/aquariums/$(request.resource.data.aquariumId)).data.ownerId == request.auth.uid
+        && request.resource.data.volumeLitres is number
+        && request.resource.data.volumeLitres > 0
+        && request.resource.data.performedAt is timestamp
+        && request.resource.data.recordedAt is timestamp
+        && (!request.resource.data.keys().hasAll(['notes']) || isBoundedText(request.resource.data.notes, 1000))
+        && request.resource.data.provenance == 'manual';
+
+      allow get: if canReadAquarium(resource.data.aquariumId, 'waterChanges');
+      allow list: if hasBoundedListQuery() && canReadAquarium(resource.data.aquariumId, 'waterChanges');
       allow update, delete: if false;
     }
 

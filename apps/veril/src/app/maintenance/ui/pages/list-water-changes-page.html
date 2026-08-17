@@ -1,0 +1,82 @@
+<section
+  aria-labelledby="water-changes-title"
+  data-testid="water-change-list"
+  class="page-section"
+>
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Mantenimiento</p>
+      <h2 id="water-changes-title">Cambios de agua</h2>
+    </div>
+    <a mat-stroked-button routerLink="/app/aquariums/maintenance/new"
+      >Registrar cambio de agua</a
+    >
+  </div>
+
+  @if (state() === 'no-context') {
+  <mat-card appearance="outlined" class="empty-state">
+    <mat-card-content>
+      <p role="status">
+        Primero selecciona un acuario para consultar sus cambios de agua.
+      </p>
+      <a mat-flat-button color="primary" routerLink="/app/aquariums"
+        >Volver a mis acuarios</a
+      >
+    </mat-card-content>
+  </mat-card>
+  } @else if (state() === 'loading') {
+  <div class="loading-state" role="status" aria-live="polite">
+    <mat-progress-spinner
+      mode="indeterminate"
+      diameter="32"
+      aria-label="Cargando cambios de agua"
+    />
+    <span>Cargando cambios de agua…</span>
+  </div>
+  } @else if (state() === 'failure') {
+  <div class="feedback feedback-error" role="alert">
+    <p>{{ errorMessage() }}</p>
+    <button mat-stroked-button type="button" (click)="retry()">
+      Reintentar
+    </button>
+  </div>
+  } @else if (state() === 'empty') {
+  <mat-card appearance="outlined" class="empty-state">
+    <mat-card-content>
+      <p>No hay cambios de agua registrados para este acuario todavía.</p>
+      <a
+        mat-flat-button
+        color="primary"
+        routerLink="/app/aquariums/maintenance/new"
+        >Registrar cambio de agua</a
+      >
+    </mat-card-content>
+  </mat-card>
+  } @else {
+  <ul aria-label="Cambios de agua">
+    @for (item of items(); track item.id) {
+    <li>
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <p class="water-change-volume">{{ item.volumeLitres }} litros</p>
+          <time [attr.datetime]="item.performedAt.toISOString()"
+            >{{ formatPerformedAt(item) }}</time
+          >
+          @if (item.notes) {
+          <p>{{ item.notes }}</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    </li>
+    }
+  </ul>
+  <veril-pagination-controls
+    [hasNextPage]="!!nextCursor()"
+    [isLoading]="isLoadingMore()"
+    [pageSize]="pageSize()"
+    (nextPage)="loadMore()"
+    (pageSizeChange)="changePageSize($event)"
+  />
+  }
+  <a mat-button routerLink="/app/aquariums/current">Volver al acuario</a>
+</section>

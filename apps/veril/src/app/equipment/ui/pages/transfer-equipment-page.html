@@ -1,0 +1,60 @@
+<section aria-labelledby="transfer-equipment-title" class="page-section">
+  <p class="eyebrow">Sistemas</p>
+  <h2 id="transfer-equipment-title">Transferir Equipment</h2>
+  <mat-card appearance="outlined"
+    ><mat-card-content
+      >@if (state() === 'loading') {
+      <p role="status">Cargando equipos…</p>
+      } @else if (state() === 'success') {
+      <p role="status">
+        Transferencia realizada. El equipo conserva su historial.
+      </p>
+      <a mat-flat-button color="primary" routerLink="/app/aquariums/equipment"
+        >Ver equipment</a
+      >} @else if (state() === 'failure') {
+      <p role="alert">{{ errorMessage() }}</p>
+      <a mat-button routerLink="/app/aquariums/equipment">Volver</a>} @else {
+      <form data-testid="equipment-transfer-form" (ngSubmit)="submit()">
+        <label
+          >Equipo<select
+            data-testid="equipment-transfer-record"
+            name="equipment"
+            [ngModel]="equipmentId()"
+            (ngModelChange)="equipmentId.set($event)"
+            required
+          >
+            @for (item of items(); track item.id) {
+            <option [value]="item.id">{{ item.name }}</option>
+            }
+          </select></label
+        ><label
+          >Acuario destino<select
+            data-testid="equipment-transfer-destination"
+            name="aquarium"
+            [ngModel]="aquariumId()"
+            (ngModelChange)="aquariumId.set($event)"
+            required
+          >
+            @for (aquarium of aquariums(); track aquarium.id) {
+            <option [value]="aquarium.id">{{ aquarium.displayName }}</option>
+            }
+          </select></label
+        >@if (!items().length || !aquariums().length) {
+        <p>No hay equipos activos o acuarios destino disponibles.</p>
+        }
+        <div class="actions">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            data-testid="equipment-transfer-submit"
+            [disabled]="state() === 'saving' || !items().length || !aquariums().length"
+          >
+            Transferir</button
+          ><a mat-button routerLink="/app/aquariums/equipment">Cancelar</a>
+        </div>
+      </form>
+      }</mat-card-content
+    ></mat-card
+  >
+</section>

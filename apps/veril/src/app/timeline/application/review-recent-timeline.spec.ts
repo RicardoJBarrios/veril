@@ -10,6 +10,7 @@ import {
   TimelineMeasurementReader,
   TimelineObservationReader,
   ObservationListItem,
+  TimelineWaterChangeReader,
 } from './ports';
 import {
   RECENT_TIMELINE_LIMIT,
@@ -20,13 +21,16 @@ const aquariumId = aquariumIdFrom('123e4567-e89b-42d3-a456-426614174000');
 
 function setup() {
   const observationReader: TimelineObservationReader = {
-    listRecentOwned: vi.fn(),
+    listRecentOwned: vi.fn().mockResolvedValue([]),
   };
   const measurementReader: TimelineMeasurementReader = {
-    listRecentOwned: vi.fn(),
+    listRecentOwned: vi.fn().mockResolvedValue([]),
   };
   const careWorkReader: CareWorkReader = {
-    listRecentOwned: vi.fn(),
+    listRecentOwned: vi.fn().mockResolvedValue([]),
+  };
+  const waterChangeReader: TimelineWaterChangeReader = {
+    listRecentOwned: vi.fn().mockResolvedValue([]),
   };
   const keeperSession: KeeperSession = {
     requireAuthenticatedKeeper: vi.fn().mockResolvedValue({ id: 'keeper-a' }),
@@ -43,12 +47,14 @@ function setup() {
     observationReader,
     measurementReader,
     careWorkReader,
+    waterChangeReader,
     keeperSession,
     context,
     review: new ReviewRecentTimeline(
       observationReader,
       measurementReader,
       careWorkReader,
+      waterChangeReader,
       keeperSession,
       context,
     ),
@@ -184,7 +190,9 @@ describe('ReviewRecentTimeline', () => {
           ? item.measurementId
           : item.kind === 'observation'
             ? item.observationId
-            : item.careWorkId,
+            : item.kind === 'care-work'
+              ? item.careWorkId
+              : item.waterChangeId,
       ),
     ).toEqual([
       '123e4567-e89b-42d3-a456-426614174003',

@@ -22,10 +22,19 @@ export interface RecordMeasurementInput {
   readonly measuredAt: Date;
   readonly recordedAt: Date;
   readonly provenance: 'manual';
+  readonly correctsMeasurementId?: MeasurementId;
 }
 
 export interface MeasurementWriter {
   record(input: RecordMeasurementInput): Promise<Measurement>;
+}
+
+export interface CorrectMeasurementInput extends RecordMeasurementInput {
+  readonly correctsMeasurementId: MeasurementId;
+}
+
+export interface MeasurementCorrector {
+  correct(input: CorrectMeasurementInput): Promise<Measurement>;
 }
 
 export type MeasurementCursor = string & {
@@ -40,6 +49,7 @@ export interface MeasurementListItem {
   readonly measuredAt: Date;
   readonly recordedAt: Date;
   readonly provenance: 'manual';
+  readonly correctsMeasurementId?: MeasurementId;
 }
 
 export interface MeasurementPage {
@@ -54,6 +64,11 @@ export interface MeasurementReader {
     cursor?: MeasurementCursor,
     pageSize?: number,
   ): Promise<MeasurementPage>;
+  getOwned(
+    ownerKeeperId: string,
+    aquariumId: AquariumId,
+    measurementId: MeasurementId,
+  ): Promise<MeasurementListItem | null>;
 }
 
 export interface CurrentMeasurementValue {
